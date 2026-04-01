@@ -30,8 +30,13 @@ if check_password():
     if st.button("開始英雄掃描"):
         with st.spinner("正在連接雲端數據庫..."):
             try:
-                # 抓取資料 (台股要加 .TW)
-                df = yf.download(f"{symbol}.TW", period="6mo", interval="1d")
+                # 如果你沒打 .TW，程式幫你補上
+if ".TW" not in symbol.upper() and ".TWO" not in symbol.upper():
+    search_symbol = f"{symbol}.TW"
+else:
+    search_symbol = symbol
+
+df = yf.download(search_symbol, period="6mo", interval="1d")
                 
                 if not df.empty:
                     # 1. 計算 20MA (月線) - 純手寫邏輯

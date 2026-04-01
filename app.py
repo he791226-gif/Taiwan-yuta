@@ -14,7 +14,7 @@ def check_password():
         st.title("🔐 英雄系統手機授權")
         pwd = st.text_input("輸入授權密碼", type="password")
         if st.button("登入"):
-            if pwd == "你的密碼": # 請記得把這裡改成你之前的密碼
+            if pwd == "yuwai8888": # 請記得把這裡改成你之前的密碼
                 st.session_state.authenticated = True
                 st.rerun()
             else:

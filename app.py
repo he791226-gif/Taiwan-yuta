@@ -1,101 +1,87 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import numpy as np
 
 # 1. 頁面基本設定
 st.set_page_config(page_title="🚀 台股英雄手機監控台", layout="wide")
 
-# 2. 密碼鎖
-def check_password():
-    if "authenticated" not in st.session_state:
-        st.session_state.authenticated = False
-    if not st.session_state.authenticated:
-        st.title("🔐 英雄系統手機授權")
-        pwd = st.text_input("輸入授權密碼", type="password")
-        if st.button("登入"):
-            if pwd == "yuwai8888": # <--- 記得改密碼
-                st.session_state.authenticated = True
-                st.rerun()
-            else:
-                st.error("密碼錯誤")
-        return False
-    return True
+# --- 英雄名冊：前500大常用名對照 (僅列部分示意，可自行按格式擴充) ---
+NAME_MAP = {
+    "2330": "台積電", "2317": "鴻海", "2454": "聯發科", "1905": "華紙",
+    "2303": "聯電", "2881": "富邦金", "2882": "國泰金", "2603": "長榮",
+    "2609": "陽明", "2615": "萬海", "2409": "友達", "3481": "群創"
+    # 可持續在此新增： "代碼": "中文名",
+}
 
-if check_password():
+# 2. 密碼鎖 (保持安全性)
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    st.title("🔐 英雄系統手機授權")
+    pwd = st.text_input("輸入授權密碼", type="password")
+    if st.button("登入"):
+        if pwd == "yuwai8888":
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("密碼錯誤")
+else:
     st.title("🚀 台股英雄手機監控台")
-    symbol_input = st.text_input("輸入股票代碼 (例: 1905, 2330)", "1905")
+    # 支援空格分開多個代碼
+    symbol_input = st.text_input("輸入股票代碼 (可用空格分開多個，例: 1905 2330)", "1905 2330")
     
     if st.button("開始英雄掃描"):
-        with st.spinner("正在注入英雄能量..."):
-            try:
-                raw_symbol = symbol_input.strip().split()[0]
-                search_symbol = f"{raw_symbol}.TW" if not ("." in raw_symbol) else raw_symbol
-                df = yf.download(search_symbol, period="6mo", interval="1d", progress=False)
+        # 拆分輸入的代碼列表
+        symbols = symbol_input.strip().split()
+        
+        for raw_symbol in symbols:
+            with st.container(): # 為每支股票建立獨立區塊
+                name = NAME_MAP.get(raw_symbol, "未知股票")
+                st.markdown(f"---")
+                st.header(f"🛡️ 英雄診斷：{name} ({raw_symbol})")
                 
-                if df.empty and ".TW" in search_symbol:
-                    search_symbol = search_symbol.replace(".TW", ".TWO")
+                try:
+                    search_symbol = f"{raw_symbol}.TW"
                     df = yf.download(search_symbol, period="6mo", interval="1d", progress=False)
-
-                if not df.empty:
-                    # 關鍵修正：解決 MultiIndex 報錯問題
-                    if isinstance(df.columns, pd.MultiIndex):
-                        df.columns = df.columns.get_level_values(0)
                     
-                    close = df['Close']
-                    high = df['High']
-                    low = df['Low']
+                    if df.empty:
+                        search_symbol = f"{raw_symbol}.TWO"
+                        df = yf.download(search_symbol, period="6mo", interval="1d", progress=False)
 
-                    # --- 英雄指標計算區 ---
-                    # 1. 月線 & 布林
-                    df['MA20'] = close.rolling(window=20).mean()
-                    df['STD20'] = close.rolling(window=20).std()
-                    df['Upper'] = df['MA20'] + (df['STD20'] * 2)
-                    
-                    # 2. 月線乖離率 (攻擊力指標)
-                    df['Bias'] = ((close - df['MA20']) / df['MA20']) * 100
-                    
-                    # 3. RSI 計算 (強弱)
-                    delta = close.diff()
-                    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-                    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-                    rs = gain / loss
-                    df['RSI'] = 100 - (100 / (1 + rs))
+                    if not df.empty:
+                        if isinstance(df.columns, pd.MultiIndex):
+                            df.columns = df.columns.get_level_values(0)
+                        
+                        # 指標計算
+                        df['收盤價(Close)'] = df['Close']
+                        df['月線(MA20)'] = df['Close'].rolling(window=20).mean()
+                        df['布林上軌(Upper)'] = df['月線(MA20)'] + (df['Close'].rolling(window=20).std() * 2)
+                        df['乖離率'] = ((df['Close'] - df['月線(MA20)']) / df['月線(MA20)']) * 100
 
-                    # 4. KD 指標 (手寫邏輯)
-                    low_min = low.rolling(window=9).min()
-                    high_max = high.rolling(window=9).max()
-                    rsv = (close - low_min) / (high_max - low_min) * 100
-                    df['K'] = rsv.ewm(com=2).mean()
-                    df['D'] = df['K'].ewm(com=2).mean()
+                        # 最新狀態
+                        last_c = df['收盤價(Close)'].iloc[-1]
+                        last_bias = df['乖離率'].iloc[-1]
+                        
+                        # 顯示數據
+                        c1, c2 = st.columns(2)
+                        c1.metric("當前股價", f"{last_c:.2f}")
+                        c2.metric("月線乖離率", f"{last_bias:.1f}%")
 
-                    # 取得最新值
-                    last_c = float(close.iloc[-1])
-                    last_bias = float(df['Bias'].iloc[-1])
-                    last_k = float(df['K'].iloc[-1])
-                    last_rsi = float(df['RSI'].iloc[-1])
-                    
-                    # 數據面板
-                    st.success(f"英雄掃描完成！")
-                    c1, c2, c3, c4 = st.columns(4)
-                    c1.metric("當前股價", f"{last_c:.2f}")
-                    c2.metric("月線乖離", f"{last_bias:.1f}%")
-                    c3.metric("K值 (轉折)", f"{last_k:.1f}")
-                    c4.metric("RSI (強弱)", f"{last_rsi:.1f}")
+                        # 警告邏輯
+                        if last_bias > 15:
+                            st.warning(f"⚠️ 攻擊過熱：乖離率 {last_bias:.1f}%，建議分批獲利！")
+                        elif last_bias > 0:
+                            st.success(f"🔥 強勢攻擊：股價在月線上方穩定運行。")
+                        else:
+                            st.error(f"❄️ 防禦狀態：目前處於弱勢，多看少動。")
 
-                    # --- 攻擊力判斷 ---
-                    st.subheader("🛡️ 英雄攻擊力診斷")
-                    if last_bias > 10:
-                        st.warning(f"⚠️ **攻擊過熱**：乖離率已達 {last_bias:.1f}%，隨時可能反轉！")
-                    elif last_bias > 0:
-                        st.info(f"🔥 **攻擊發動**：股價站在月線之上，動能增強中。")
+                        # 圖表中文化顯示
+                        # 我們只選要顯示的中文欄位
+                        chart_data = df[['收盤價(Close)', '月線(MA20)', '布林上軌(Upper)']]
+                        st.line_chart(chart_data)
+                        
                     else:
-                        st.error(f"❄️ **能量不足**：目前在月線下方，建議防禦。")
-
-                    # 圖表顯示
-                    st.line_chart(df[['Close', 'MA20', 'Upper']])
-                    
-                else:
-                    st.error("找不到資料")
-            except Exception as e:
-                st.error(f"系統異常: {e}")
+                        st.error(f"找不到代碼 {raw_symbol} 的資料")
+                except Exception as e:
+                    st.error(f"{raw_symbol} 掃描異常: {e}")

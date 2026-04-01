@@ -30,26 +30,50 @@ if not st.session_state.authenticated:
         else:
             st.error("密碼錯誤")
 else:
-    # --- 獲取美股連動情緒 ---
+    # --- 核心優化：美股連動情緒與點數可視化 ---
     @st.cache_data(ttl=3600)
-    def get_us_market_sentiment():
+    def get_us_market_detailed():
         try:
+            # 包含 S&P 500 (^GSPC), Nasdaq (^IXIC), SOX (^SOX)
             indices = ["^GSPC", "^IXIC", "^SOX"]
             data = yf.download(indices, period="2d", progress=False)['Close']
-            changes = [((data[col].iloc[-1] - data[col].iloc[-2]) / data[col].iloc[-2] * 100) for col in data.columns]
-            avg_chg = (changes[0]*0.2 + changes[1]*0.4 + changes[2]*0.4)
-            return avg_chg, changes[1], changes[2]
-        except: return 0, 0, 0
+            
+            res = {}
+            for col in data.columns:
+                curr = data[col].iloc[-1]
+                prev = data[col].iloc[-2]
+                diff = curr - prev
+                pct = (diff / prev) * 100
+                res[col] = {"price": curr, "diff": diff, "pct": pct}
+            
+            # 美股綜合情緒：S&P(20%) + Nasdaq(40%) + SOX(40%)
+            avg_chg = (res["^GSPC"]["pct"]*0.2 + res["^IXIC"]["pct"]*0.4 + res["^SOX"]["pct"]*0.4)
+            return avg_chg, res
+        except: return 0, None
 
-    us_avg, nasdaq_chg, sox_chg = get_us_market_sentiment()
+    us_avg, us_details = get_us_market_detailed()
 
     st.title("🚀 台股英雄手機監控台")
     
-    # 美股看板
-    us_c1, us_c2, us_c3 = st.columns(3)
-    us_c1.metric("美股綜合情緒", f"{us_avg:.2f}%")
-    us_c2.metric("那斯達克 (Nasdaq)", f"{nasdaq_chg:.2f}%")
-    us_c3.metric("費半 (SOX)", f"{sox_chg:.2f}%")
+    # --- 1. 美股看板 (視覺強化版) ---
+    st.subheader("🌍 全球連動情緒")
+    us_c1, us_c2, us_c3, us_c4 = st.columns(4)
+    
+    # 綜合情緒註解
+    us_c1.metric("美股綜合情緒", f"{us_avg:.2f}%", help="加權計算：S&P500(20%) + 那指(40%) + 費半(40%)。代表今日台股開盤的外在環境壓力。")
+    
+    if us_details:
+        # S&P 500
+        sp = us_details["^GSPC"]
+        us_c2.metric("標普500 (S&P500)", f"{sp['price']:.2f}", f"{sp['diff']:+.2f} ({sp['pct']:+.2f}%)")
+        # Nasdaq
+        nd = us_details["^IXIC"]
+        us_c3.metric("那斯達克 (Nasdaq)", f"{nd['price']:.2f}", f"{nd['diff']:+.2f} ({nd['pct']:+.2f}%)")
+        # SOX
+        sx = us_details["^SOX"]
+        us_c4.metric("費半 (SOX)", f"{sx['price']:.2f}", f"{sx['diff']:+.2f} ({sx['pct']:+.2f}%)")
+
+    st.markdown("---")
 
     symbol_input = st.text_input("輸入股票代碼 (可用空格分開)", "1905 1906 2449")
     
@@ -84,14 +108,14 @@ else:
                         change_pct = ((curr_price - prev_price) / prev_price) * 100
                         bias = ((curr_price - curr_ma20) / curr_ma20) * 100
 
-                        # --- 英雄點數大腦 ---
+                        # --- 英雄點數大腦 (嚴格保留) ---
                         score = 65 
                         if change_pct > 7: score += 15
                         if change_pct < -9: score -= 35
-                        if us_avg < -1.5: score -= 15 # 環境壓力
+                        if us_avg < -1.5: score -= 15 
                         
                         is_spike = float(vol.iloc[-1]) > float(ma5_v.iloc[-1]) * 1.2
-                        if change_pct < -5 and not is_spike: score -= 20 # 華紙邏輯：縮量跌停最危險
+                        if change_pct < -5 and not is_spike: score -= 20 
 
                         final_score = int(min(99, max(5, score)))
 
@@ -99,24 +123,20 @@ else:
                         name = NAME_MAP.get(raw_symbol, "未知")
                         st.markdown(f"### 🛡️ 英雄診斷：{name} ({raw_symbol})")
                         
-                        # 現價與漲跌幅 (回歸版本)
                         p_color = "#ff4b4b" if change_pct > 0 else "#00cc00"
                         st.markdown(f"當前股價 (今日漲跌: <span style='color:{p_color}; font-weight:bold;'>{'+' if change_pct>0 else ''}{change_pct:.2f}%</span>)", unsafe_allow_html=True)
                         
-                        # 四大數據欄位
                         val_c1, val_c2, val_c3, val_c4 = st.columns(4)
                         val_c1.title(f"{curr_price:.2f}")
                         val_c2.write(f"**20MA (月線)**\n### {curr_ma20:.2f}")
                         val_c3.write(f"**布林上軌**\n### {curr_upper:.2f}")
                         val_c4.write(f"**月線乖離%**\n### {bias:.1f}%")
 
-                        # 乖離警戒
                         if bias > 10:
                             st.warning(f"⚠️ 攻擊過熱：乖離率已達 {bias:.1f}% (正常值 < 10%)，建議分批獲利！")
                         elif bias < -10:
                             st.error(f"❄️ 乖離過低：股價超跌，注意反彈風險。")
 
-                        # 核心評分區
                         col1, col2 = st.columns([1, 1])
                         with col1:
                             s_color = "#ff4b4b" if final_score > 70 else ("#00cc00" if final_score < 40 else "#31333F")
@@ -136,7 +156,7 @@ else:
                             st.warning(f"🚀 趨勢型態：{'多頭噴發' if curr_price > curr_upper else ('空頭反轉' if change_pct < -5 else '區間震盪')}")
                             st.info(f"⚡ 動能指標：{'持續加溫' if change_pct > 0 else '動能潰散'}")
 
-                        # 圖表與中文標籤回歸
+                        # 圖表與中文標籤
                         chart_df = pd.DataFrame({
                             '收盤價(Close)': close,
                             '月線(MA20)': ma20,

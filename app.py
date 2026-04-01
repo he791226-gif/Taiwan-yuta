@@ -15,7 +15,7 @@ def check_password():
         # --- 請在此修改你的登入密碼 ---
         pwd = st.text_input("輸入授權密碼", type="password")
         if st.button("登入"):
-            if pwd == "你的密碼":  # <--- 把這裡改成你想設定的密碼
+            if pwd == "yuwai8888":  # <--- 把這裡改成你想設定的密碼
                 st.session_state.authenticated = True
                 st.rerun()
             else:

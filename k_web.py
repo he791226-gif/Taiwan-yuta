@@ -136,24 +136,24 @@ if st.session_state.cart:
             row = 17 + i
             price = st.session_state.price_config.get(name, 0)
             
-            # NO (A欄)
+            # NO  (A欄 = 1)
             ws.cell(row=row, column=1, value=i+1).font = bold_font
             
-            # 品名規格 (B欄)
+            # 品名規格 (B欄 = 2)
             ws.cell(row=row, column=2, value=name).font = bold_font
             
-            # 數量 (D欄) - 置中
-            c_qty = ws.cell(row=row, column=6, value=qty)
+            # 單位 (圖片顯示在 D 欄 = 4)
+            c_qty = ws.cell(row=row, column=4, value=qty)
             c_qty.font = bold_font
             c_qty.alignment = center_align
             
-            # 單位 (E欄) - 置中
-            c_unit = ws.cell(row=row, column=7, value=unit_map.get(name, "台"))
+            # 數量 (圖片顯示在 E 欄 = 5)
+            c_unit = ws.cell(row=row, column=5, value=unit_map.get(name, "台"))
             c_unit.font = bold_font
             c_unit.alignment = center_align
             
-            # 金額 (H欄) - 靠右
-            c_sub = ws.cell(row=row, column=8, value=price * qty)
+            # 金額 (圖片顯示在 G 欄 = 7)
+            c_sub = ws.cell(row=row, column=7, value=price * qty)
             c_sub.font = bold_font
             c_sub.alignment = right_align
 

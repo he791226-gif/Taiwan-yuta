@@ -117,13 +117,16 @@ if st.session_state.cart:
         right_align = Alignment(horizontal='right', vertical='center')
         center_align = Alignment(horizontal='center', vertical='center')
 
-        # 【修正 1】徹底清空 H14, I15 以防殘留錯誤日期，並將正確日期填入 H15
+        # 【修正 1】 H14將正確日期填入,H15顯示金額
         ws['H14'] = datetime.now().strftime('估價日期:%Y-%m-%d')
-        ws['I15'] = ""
-        ws['H15'] = ""
+        ws['H14'].font = bold_font  # 套用加粗字體
+        ws['H14'].alignment = Alignment(horizontal='left') # 設定靠左對齊
+        # 1. 寫入文字內容
+        ws['H15'] = "金額"
+        # 2. 設定為粗體 (沿用你程式中定義好的 bold_font)
         ws['H15'].font = bold_font
-        ws['H15'].alignment = Alignment(horizontal='left')
-
+        # 3. 設定為靠左對齊
+        ws['H15'].alignment = Alignment(horizontal='left', vertical='center'
         # 填入客戶資訊
         ws['B11'] = customer_name
         ws['B12'] = contact_person

@@ -26,16 +26,16 @@ if 'cart' not in st.session_state:
 
 products = {
     "空壓機": [
-        ("5馬空壓機", "air_5.png"), ("10馬空壓機", "air_10.png"), ("20馬空壓機", "air_20.png"), 
-        ("30馬空壓機", "air_30.png"), ("50馬空壓機", "air_50.png"), ("75馬空壓機", "air_75.png"), ("100馬空壓機", "air_100.png")
+        ("5馬空壓機", "air_5.png"), ("10馬永磁變頻空壓機HCV-10PM-A", "air_10.png"), ("20馬永磁變頻空壓機HCV-20PM-A", "air_20.png"), 
+        ("30馬永磁變頻空壓機HCV-30PM-A", "air_30.png"), ("50馬永磁變頻空壓機HCV-50PM-A", "air_50.png"), ("750馬永磁變頻空壓機HCV-75PM-A", "air_75.png"), ("100馬永磁變頻空壓機HCV-100PM-A", "air_100.png")
     ],
     "儲氣筒": [
         ("105儲氣筒", "tank_105.png"), ("360儲氣筒", "tank_360.png"), ("660儲氣筒", "tank_660.png")
     ],
     "乾燥機": {
         "宙升": [
-            ("5馬宙升乾燥機", "zs_dryer_5.png"), ("10馬宙升乾燥機", "zs_dryer_10.png"), ("20馬宙升乾燥機", "zs_dryer_20.png"), 
-            ("30馬宙升乾燥機", "zs_dryer_30.png"), ("50馬宙升乾燥機", "zs_dryer_50.png"), ("100馬宙升乾燥機", "zs_dryer_100.png")
+            ("5馬宙升乾燥機SD-005", "zs_dryer_5.png"), ("10馬宙升乾燥機SD-010	", "zs_dryer_10.png"), ("20馬宙升乾燥機SD-020", "zs_dryer_20.png"), 
+            ("30馬宙升乾燥機SD-030", "zs_dryer_30.png"), ("50馬宙升乾燥機SD-050", "zs_dryer_50.png"), ("100馬宙升乾燥機", "zs_dryer_100.png")
         ],
         "艾冷": [
             ("5馬艾冷乾燥機", "al_dryer_5.png"), ("10馬艾冷乾燥機", "al_dryer_10.png"), ("20馬艾冷乾燥機", "al_dryer_20.png"), 

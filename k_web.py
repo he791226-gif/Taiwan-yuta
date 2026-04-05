@@ -123,6 +123,8 @@ if st.session_state.cart:
         ws['H14'].alignment = Alignment(horizontal='left') # 設定靠左對齊
         # 1. 寫入文字內容
         ws['H15'] = "金額"
+        ws['H15'] = ""      # 先徹底清空
+        ws['H15'] = "金額"  # 再重新填入
         # 2. 設定為粗體 (沿用你程式中定義好的 bold_font)
         ws['H15'].font = bold_font
         # 3. 設定為靠左對齊
@@ -142,18 +144,18 @@ if st.session_state.cart:
             # 品名規格 (B欄 = 2)
             ws.cell(row=row, column=2, value=name).font = bold_font
             
-            # 單位 (圖片顯示在 D 欄 = 4)
-            c_qty = ws.cell(row=row, column=4, value=qty)
-            c_qty.font = bold_font
-            c_qty.alignment = center_align
-            
-            # 數量 (圖片顯示在 E 欄 = 5)
-            c_unit = ws.cell(row=row, column=5, value=unit_map.get(name, "台"))
+            # 1. 單位 (D欄 = 4)
+            c_unit = ws.cell(row=row, column=4, value=unit_map.get(name, "台"))
             c_unit.font = bold_font
             c_unit.alignment = center_align
-            
-            # 金額 (圖片顯示在 G 欄 = 7)
-            c_sub = ws.cell(row=row, column=7, value=price * qty)
+
+            # 2. 數量 (E欄 = 5)
+            c_qty = ws.cell(row=row, column=5, value=qty)
+            c_qty.font = bold_font
+            c_qty.alignment = center_align
+
+            # 3. 金額 (I欄 = 9) <--- 建議改 9，才會對齊標題
+            c_sub = ws.cell(row=row, column=9, value=price * qty)
             c_sub.font = bold_font
             c_sub.alignment = right_align
 

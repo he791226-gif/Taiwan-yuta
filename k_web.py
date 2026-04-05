@@ -94,7 +94,7 @@ with tabs[2]:
     display_items(products["乾燥機"][brand])
 with tabs[3]: display_items(products["選配配件"])
 
-# --- 5. 報價清單與 EXCEL 輸出 (針對合併儲存格優化版) ---
+# --- 5. 報價清單與 EXCEL 輸出 (針對合併格精確對位版) ---
 st.divider()
 if st.session_state.cart:
     st.subheader("📋 目前報價清單")
@@ -117,12 +117,12 @@ if st.session_state.cart:
         right_align = Alignment(horizontal='right', vertical='center')
         center_align = Alignment(horizontal='center', vertical='center')
 
-        # 【修正 1】標題與日期 (避開合併格)
+        # 1. 修正日期與標題 (日期放 H14，蓋掉原本 112 年的舊日期)
         ws['H14'] = datetime.now().strftime('估價日期:%Y-%m-%d')
         ws['H14'].font = bold_font
         ws['H14'].alignment = Alignment(horizontal='left')
 
-        # 強制修正第 15 列標題位置
+        # 2. 強制把標題列 (15列) 內容修正，確保「金額」出現
         ws['F15'] = "單位"
         ws['G15'] = "數量"
         ws['I15'] = "金額" 
@@ -131,37 +131,37 @@ if st.session_state.cart:
             ws[col].font = bold_font
             ws[col].alignment = center_align
 
-        # 填入客戶資訊
+        # 3. 填入客戶資訊
         ws['B11'] = customer_name
         ws['B12'] = contact_person
 
-        # 【座標精確對位版】根據模板結構修改
+        # 4. 【核心修正】填入資料 (避開合併格，對準 F, G, I)
         for i, (name, qty) in enumerate(st.session_state.cart.items()):
             row = 17 + i
             price = st.session_state.price_config.get(name, 0)
             
-            # 1. NO (A欄 = 1)
+            # NO (A欄 = 1)
             ws.cell(row=row, column=1, value=i+1).font = bold_font
             
-            # 2. 品名規格 (B欄 = 2) 
+            # 品名規格 (B欄 = 2)
             ws.cell(row=row, column=2, value=name).font = bold_font
             
-            # 3. 單位 (F欄 = 6)
+            # 單位 (F欄 = 6)
             c_unit = ws.cell(row=row, column=6, value=unit_map.get(name, "台"))
             c_unit.font = bold_font
             c_unit.alignment = center_align
             
-            # 4. 數量 (G欄 = 7)
+            # 數量 (G欄 = 7)
             c_qty = ws.cell(row=row, column=7, value=qty)
             c_qty.font = bold_font
             c_qty.alignment = center_align
             
-            # 5. 金額 (I欄 = 9)
+            # 金額 (I欄 = 9)
             c_sub = ws.cell(row=row, column=9, value=price * qty)
             c_sub.font = bold_font
             c_sub.alignment = right_align
 
-        # 【修正 3】總計位置
+        # 5. 合計位置修正 (放在 I36)
         ws['I36'] = total_val
         ws['I36'].font = Font(name='新細明體', size=12, bold=True)
         ws['I36'].alignment = right_align
@@ -170,6 +170,7 @@ if st.session_state.cart:
         ws['H36'].font = bold_font
         ws['H36'].alignment = right_align
 
+        # 輸出檔案
         output = io.BytesIO()
         wb.save(output)
         st.download_button(label="📤 下載 翌新專業報價單 (Excel)", data=output.getvalue(), file_name=f"翌新報價_{customer_name}.xlsx")

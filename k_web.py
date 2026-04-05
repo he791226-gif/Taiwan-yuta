@@ -117,14 +117,15 @@ if st.session_state.cart:
         right_align = Alignment(horizontal='right', vertical='center')
         center_align = Alignment(horizontal='center', vertical='center')
 
-        # 【修正 1】 H14將正確日期填入,H15顯示金額
+       # 【修正 1】
         ws['H14'] = datetime.now().strftime('估價日期:%Y-%m-%d')
-        ws['H14'].font = bold_font  # 套用加粗字體
-        ws['H14'].alignment = Alignment(horizontal='left') # 設定靠左對齊
-        # 1. 寫入文字內容
-        ws['H15'] = "金額"
-        ws['H15'] = ""      # 先徹底清空
-        ws['H15'] = "金額"  # 再重新填入
+        ws['H14'].font = bold_font
+        ws['H14'].alignment = Alignment(horizontal='left')
+
+        # 強制把 H15 改回「金額」兩個字，把原本那個日期蓋掉
+        ws['H15'] = "金額" 
+        ws['H15'].font = bold_font
+        ws['H15'].alignment = center_align
         # 2. 設定為粗體 (沿用你程式中定義好的 bold_font)
         ws['H15'].font = bold_font
         # 3. 設定為靠左對齊
@@ -133,29 +134,29 @@ if st.session_state.cart:
         ws['B11'] = customer_name
         ws['B12'] = contact_person
 
-        # 【修正 2】精確對照圖 2 欄位：NO(A), 品名(B), 數量(D), 單位(E), 金額(H)
+        # 【最終修正】對照模板：NO(A=1), 品名(B=2), 單位(E=5), 數量(F=6), 金額(H=8)
         for i, (name, qty) in enumerate(st.session_state.cart.items()):
             row = 17 + i
             price = st.session_state.price_config.get(name, 0)
             
-            # NO  (A欄 = 1)
+            # 1. NO (A欄 = 1)
             ws.cell(row=row, column=1, value=i+1).font = bold_font
             
-            # 品名規格 (B欄 = 2)
+            # 2. 品名規格 (B欄 = 2)
             ws.cell(row=row, column=2, value=name).font = bold_font
             
-            # 1. 單位 (D欄 = 4)
-            c_unit = ws.cell(row=row, column=4, value=unit_map.get(name, "台"))
+            # 3. 單位 (E欄 = 5) <-- 這裡改 5，填入單位
+            c_unit = ws.cell(row=row, column=5, value=unit_map.get(name, "台"))
             c_unit.font = bold_font
             c_unit.alignment = center_align
-
-            # 2. 數量 (E欄 = 5)
-            c_qty = ws.cell(row=row, column=5, value=qty)
+            
+            # 4. 數量 (F欄 = 6) <-- 這裡改 6，填入數量
+            c_qty = ws.cell(row=row, column=6, value=qty)
             c_qty.font = bold_font
             c_qty.alignment = center_align
-
-            # 3. 金額 (I欄 = 9) <--- 建議改 9，才會對齊標題
-            c_sub = ws.cell(row=row, column=9, value=price * qty)
+            
+            # 5. 金額 (H欄 = 8) <-- 這裡改 8，對齊標題「金額」下方的格子
+            c_sub = ws.cell(row=row, column=8, value=price * qty)
             c_sub.font = bold_font
             c_sub.alignment = right_align
 

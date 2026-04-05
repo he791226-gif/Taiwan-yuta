@@ -117,11 +117,16 @@ if st.session_state.cart:
         right_align = Alignment(horizontal='right', vertical='center')
         center_align = Alignment(horizontal='center', vertical='center')
 
-        # 1. 填入客戶資訊與日期 (假設你在 H12 留了位置)
+        # --- 1. 填入客戶資訊與日期 (日期改到 H14) ---
         ws['B11'] = customer_name
         ws['B12'] = contact_person
-        ws['H12'] = f"估價日期：{datetime.now().strftime('%Y-%m-%d')}"
-        ws['H12'].font = bold_font
+        
+        # 這裡兩行座標要一致
+        ws['H14'] = f"估價日期：{datetime.now().strftime('估價日期:%Y-%m-%d')}"
+        ws['H14'].font = bold_font
+        
+        # 建議多加這行，讓日期靠左對齊，比較美觀
+        ws['H14'].alignment = Alignment(horizontal='left', vertical='center')
 
         # 2. 填入明細資料 (採取最正常的 A, B, C, D, E, F 順序)
         for i, (name, qty) in enumerate(st.session_state.cart.items()):

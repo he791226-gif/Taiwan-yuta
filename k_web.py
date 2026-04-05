@@ -117,21 +117,20 @@ if st.session_state.cart:
         right_align = Alignment(horizontal='right', vertical='center')
         center_align = Alignment(horizontal='center', vertical='center')
 
-       # 【修正 1】
-        # 日期放在 H14
+        # 【修正 1】強力覆蓋標題與日期
         ws['H14'] = datetime.now().strftime('估價日期:%Y-%m-%d')
         ws['H14'].font = bold_font
         ws['H14'].alignment = Alignment(horizontal='left')
 
-        # 強制修正第 15 列的標題內容與位置
-        ws['F15'] = "單位"
-        ws['G15'] = "數量"
-        ws['I15'] = "金額"  # 強制蓋掉那個日期
+        # 直接對標題列動手，確保標題字樣正確
+        ws['E15'] = "單位"
+        ws['F15'] = "數量"
+        ws['H15'] = "金額"  # 這行會把討厭的日期蓋成「金額」兩個字
         
-        # 設定標題字體
-        for col in ['F15', 'G15', 'I15']:
-            ws[col].font = bold_font
-            ws[col].alignment = center_align
+        # 設定標題樣式
+        for cell_coord in ['E15', 'F15', 'H15']:
+            ws[cell_coord].font = bold_font
+            ws[cell_coord].alignment = center_align
         # 2. 設定為粗體 (沿用你程式中定義好的 bold_font)
         ws['H15'].font = bold_font
         # 3. 設定為靠左對齊
@@ -140,7 +139,7 @@ if st.session_state.cart:
         ws['B11'] = customer_name
         ws['B12'] = contact_person
 
-        # 【根據 image_02fea4 模板精確對位】
+       # 【終極座標鎖定版】
         for i, (name, qty) in enumerate(st.session_state.cart.items()):
             row = 17 + i
             price = st.session_state.price_config.get(name, 0)
@@ -151,18 +150,19 @@ if st.session_state.cart:
             # 2. 品名規格 (B欄 = 2)
             ws.cell(row=row, column=2, value=name).font = bold_font
             
-            # 3. 單位 (F欄 = 6) <-- 這是你模板中「單位」的正下方
-            c_unit = ws.cell(row=row, column=6, value=unit_map.get(name, "台"))
+            # 3. 單位 (E欄 = 5) <-- 針對你的模板：E 是放「單位」
+            c_unit = ws.cell(row=row, column=5, value=unit_map.get(name, "台"))
             c_unit.font = bold_font
             c_unit.alignment = center_align
             
-            # 4. 數量 (G欄 = 7) <-- 這是你模板中「數量」的正下方
-            c_qty = ws.cell(row=row, column=7, value=qty)
+            # 4. 數量 (F欄 = 6) <-- 針對你的模板：F 是放「數量」
+            c_qty = ws.cell(row=row, column=6, value=qty)
             c_qty.font = bold_font
             c_qty.alignment = center_align
             
-            # 5. 金額 (I欄 = 9) <-- 這是你模板中「金額」的正下方
-            c_sub = ws.cell(row=row, column=9, value=price * qty)
+            # 5. 金額 (H欄 = 8) <-- 針對你的模板：H 是放「金額」
+            # 如果之後發現又偏掉，這格改 9 試試
+            c_sub = ws.cell(row=row, column=8, value=price * qty)
             c_sub.font = bold_font
             c_sub.alignment = right_align
 

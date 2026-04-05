@@ -94,7 +94,7 @@ with tabs[2]:
     display_items(products["乾燥機"][brand])
 with tabs[3]: display_items(products["選配配件"])
 
-# --- 5. 報價清單與 EXCEL 輸出 (精確修改輸出位置) ---
+# --- 5. 報價清單與 EXCEL 輸出 ---
 st.divider()
 if st.session_state.cart:
     st.subheader("📋 目前報價清單")
@@ -117,65 +117,60 @@ if st.session_state.cart:
         right_align = Alignment(horizontal='right', vertical='center')
         center_align = Alignment(horizontal='center', vertical='center')
 
-        # 【修正 1】強力覆蓋標題與日期
+        # 【修正 1】標題與日期
         ws['H14'] = datetime.now().strftime('估價日期:%Y-%m-%d')
         ws['H14'].font = bold_font
         ws['H14'].alignment = Alignment(horizontal='left')
 
-        # 直接對標題列動手，確保標題字樣正確
+        # --- 這裡最重要：強制修正標題文字 ---
         ws['E15'] = "單位"
         ws['F15'] = "數量"
-        ws['H15'] = "金額"  # 這行會把討厭的日期蓋成「金額」兩個字
+        ws['H15'] = "金額"  # 強制覆蓋掉模板上原本的日期
         
-        # 設定標題樣式
         for cell_coord in ['E15', 'F15', 'H15']:
             ws[cell_coord].font = bold_font
             ws[cell_coord].alignment = center_align
-        # 2. 設定為粗體 (沿用你程式中定義好的 bold_font)
-        ws['H15'].font = bold_font
-        # 3. 設定為靠左對齊
-        ws['H15'].alignment = Alignment(horizontal='left', vertical='center')
+
         # 填入客戶資訊
         ws['B11'] = customer_name
         ws['B12'] = contact_person
 
-       # 【終極座標鎖定版】
+        # 【終極座標鎖定版】
         for i, (name, qty) in enumerate(st.session_state.cart.items()):
             row = 17 + i
             price = st.session_state.price_config.get(name, 0)
             
-            # 1. NO (A欄 = 1)
+            # 1. NO (A欄)
             ws.cell(row=row, column=1, value=i+1).font = bold_font
             
-            # 2. 品名規格 (B欄 = 2)
+            # 2. 品名規格 (B欄)
             ws.cell(row=row, column=2, value=name).font = bold_font
             
-            # 3. 單位 (E欄 = 5) <-- 針對你的模板：E 是放「單位」
+            # 3. 單位 (E欄 = 5)
             c_unit = ws.cell(row=row, column=5, value=unit_map.get(name, "台"))
             c_unit.font = bold_font
             c_unit.alignment = center_align
             
-            # 4. 數量 (F欄 = 6) <-- 針對你的模板：F 是放「數量」
+            # 4. 數量 (F欄 = 6)
             c_qty = ws.cell(row=row, column=6, value=qty)
             c_qty.font = bold_font
             c_qty.alignment = center_align
             
-            # 5. 金額 (H欄 = 8) <-- 針對你的模板：H 是放「金額」
-            # 如果之後發現又偏掉，這格改 9 試試
+            # 5. 金額 (H欄 = 8)
             c_sub = ws.cell(row=row, column=8, value=price * qty)
             c_sub.font = bold_font
             c_sub.alignment = right_align
 
-        # 【修正 3】總計位置 H36 靠右對齊
+        # 【修正 3】總計與合計
         ws['H36'] = total_val
         ws['H36'].font = Font(name='新細明體', size=12, bold=True)
         ws['H36'].alignment = right_align
         
-        # 可選：合計字樣放在 G36
         ws['G36'] = "合計"
         ws['G36'].font = bold_font
         ws['G36'].alignment = right_align
 
+        # 存檔輸出 (要在所有修改之後)
         output = io.BytesIO()
         wb.save(output)
         st.download_button(label="📤 下載 翌新專業報價單 (Excel)", data=output.getvalue(), file_name=f"翌新報價_{customer_name}.xlsx")

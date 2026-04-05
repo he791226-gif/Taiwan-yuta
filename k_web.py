@@ -126,7 +126,7 @@ if st.session_state.cart:
         # 2. 設定為粗體 (沿用你程式中定義好的 bold_font)
         ws['H15'].font = bold_font
         # 3. 設定為靠左對齊
-        ws['H15'].alignment = Alignment(horizontal='left', vertical='center'
+        ws['H15'].alignment = Alignment(horizontal='left', vertical='center')
         # 填入客戶資訊
         ws['B11'] = customer_name
         ws['B12'] = contact_person

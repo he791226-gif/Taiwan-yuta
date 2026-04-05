@@ -94,7 +94,7 @@ with tabs[2]:
     display_items(products["乾燥機"][brand])
 with tabs[3]: display_items(products["選配配件"])
 
-# --- 5. 報價清單與 EXCEL 輸出 (針對合併格精確對位版) ---
+# --- 5. 報價清單與 EXCEL 輸出 (最終穩定對位版) ---
 st.divider()
 if st.session_state.cart:
     st.subheader("📋 目前報價清單")
@@ -117,46 +117,44 @@ if st.session_state.cart:
         right_align = Alignment(horizontal='right', vertical='center')
         center_align = Alignment(horizontal='center', vertical='center')
 
-        # 1. 修正日期與標題 (日期放 H14，蓋掉原本 112 年的舊日期)
-        ws['H14'] = datetime.now().strftime('估價日期:%Y-%m-%d')
-        ws['H14'].font = bold_font
-        ws['H14'].alignment = Alignment(horizontal='left')
+        # 1. 日期改放 B14 (完全避開右邊的標題區，防止撞到「金額」)
+        ws['B14'] = datetime.now().strftime('估價日期:%Y-%m-%d')
+        ws['B14'].font = bold_font
+        ws['B14'].alignment = Alignment(horizontal='left')
 
-        # 2. 強制把標題列 (15列) 內容修正，確保「金額」出現
-        ws['F15'] = "單位"
-        ws['G15'] = "數量"
-        ws['I15'] = "金額" 
-        
-        for col in ['F15', 'G15', 'I15']:
-            ws[col].font = bold_font
-            ws[col].alignment = center_align
+        # 2. 標題列格式設定 (只設格式，不寫文字，保留模板原本的「金額」)
+        # 根據模板 CSV：F15=單位, G15=數量, I15=金額
+        for col_name in ['F', 'G', 'I']:
+            target_cell = f"{col_name}15"
+            ws[target_cell].font = bold_font
+            ws[target_cell].alignment = center_align
 
         # 3. 填入客戶資訊
         ws['B11'] = customer_name
         ws['B12'] = contact_person
 
-        # 4. 【核心修正】填入資料 (避開合併格，對準 F, G, I)
+        # 4. 填入明細資料 (精確對準 F, G, I 欄)
         for i, (name, qty) in enumerate(st.session_state.cart.items()):
             row = 17 + i
             price = st.session_state.price_config.get(name, 0)
             
-            # NO (A欄 = 1)
+            # NO (A 欄)
             ws.cell(row=row, column=1, value=i+1).font = bold_font
             
-            # 品名規格 (B欄 = 2)
+            # 品名規格 (B 欄)
             ws.cell(row=row, column=2, value=name).font = bold_font
             
-            # 單位 (F欄 = 6)
+            # 單位 (F 欄 = 6)
             c_unit = ws.cell(row=row, column=6, value=unit_map.get(name, "台"))
             c_unit.font = bold_font
             c_unit.alignment = center_align
             
-            # 數量 (G欄 = 7)
+            # 數量 (G 欄 = 7)
             c_qty = ws.cell(row=row, column=7, value=qty)
             c_qty.font = bold_font
             c_qty.alignment = center_align
             
-            # 金額 (I欄 = 9)
+            # 金額 (I 欄 = 9)
             c_sub = ws.cell(row=row, column=9, value=price * qty)
             c_sub.font = bold_font
             c_sub.alignment = right_align

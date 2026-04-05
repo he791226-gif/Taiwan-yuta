@@ -118,9 +118,9 @@ if st.session_state.cart:
         center_align = Alignment(horizontal='center', vertical='center')
 
         # 【修正 1】徹底清空 H14, I15 以防殘留錯誤日期，並將正確日期填入 H15
-        ws['H14'] = ""
+        ws['H14'] = datetime.now().strftime('估價日期:%Y-%m-%d')
         ws['I15'] = ""
-        ws['H15'] = datetime.now().strftime('%Y-%m-%d')
+        ws['H15'] = ""
         ws['H15'].font = bold_font
         ws['H15'].alignment = Alignment(horizontal='left')
 
@@ -140,12 +140,12 @@ if st.session_state.cart:
             ws.cell(row=row, column=2, value=name).font = bold_font
             
             # 數量 (D欄) - 置中
-            c_qty = ws.cell(row=row, column=4, value=qty)
+            c_qty = ws.cell(row=row, column=6, value=qty)
             c_qty.font = bold_font
             c_qty.alignment = center_align
             
             # 單位 (E欄) - 置中
-            c_unit = ws.cell(row=row, column=5, value=unit_map.get(name, "台"))
+            c_unit = ws.cell(row=row, column=7, value=unit_map.get(name, "台"))
             c_unit.font = bold_font
             c_unit.alignment = center_align
             

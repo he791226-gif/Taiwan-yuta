@@ -94,7 +94,7 @@ with tabs[2]:
     display_items(products["乾燥機"][brand])
 with tabs[3]: display_items(products["選配配件"])
 
-# --- 5. 報價清單與 EXCEL 輸出 (配合新範本 EXCELNEW 版) ---
+# --- 5. 報價清單與 EXCEL 輸出 (精確對位最終版) ---
 st.divider()
 if st.session_state.cart:
     st.subheader("📋 目前報價清單")
@@ -117,48 +117,47 @@ if st.session_state.cart:
         right_align = Alignment(horizontal='right', vertical='center')
         center_align = Alignment(horizontal='center', vertical='center')
 
-       # --- 1. 填入客戶資訊與日期 (修正日期文字與座標) ---
+        # 1. 填入客戶資訊與日期 (H14 改為正確賦值)
         ws['B11'] = customer_name
         ws['B12'] = contact_person
         
-        # 修正：不要重複寫「估價日期」，並確保座標一致
-        current_date = datetime.now().strftime('%Y-%m-%d')
-        ws['H14'] = f"估價日期：{current_date}"
+        # 修正日期顯示，避免文字重複
+        ws['H14'] = f"估價日期：{datetime.now().strftime('%Y-%m-%d')}"
         ws['H14'].font = bold_font
         ws['H14'].alignment = Alignment(horizontal='left', vertical='center')
 
-        # --- 2. 填入明細資料 (精確對準你要求的排位) ---
+        # 2. 填入明細資料 (根據你的圖片 F, G, I 座標)
         for i, (name, qty) in enumerate(st.session_state.cart.items()):
             row = 17 + i
             price = st.session_state.price_config.get(name, 0)
             
-            # NO (A欄 = 1)
+            # NO (A 欄 = 1)
             ws.cell(row=row, column=1, value=i+1).font = bold_font
             
-            # 品名規格 (B欄 = 2)
+            # 品名規格 (B 欄 = 2)
             ws.cell(row=row, column=2, value=name).font = bold_font
             
-            # 單位 (你要的 F 排 = 第 6 欄) <-- 這裡修正了！
+            # 單位 (對準 F 排 = 第 6 欄)
             c_unit = ws.cell(row=row, column=6, value=unit_map.get(name, "台"))
             c_unit.font = bold_font
             c_unit.alignment = center_align
             
-            # 數量 (你要的 G 排 = 第 7 欄) <-- 這裡修正了！
+            # 數量 (對準 G 排 = 第 7 欄)
             c_qty = ws.cell(row=row, column=7, value=qty)
             c_qty.font = bold_font
             c_qty.alignment = center_align
 
-            # 單價 (H 排 = 第 8 欄)
+            # 單價 (對準 H 排 = 第 8 欄)
             c_price = ws.cell(row=row, column=8, value=price)
             c_price.font = bold_font
             c_price.alignment = right_align
             
-            # 金額 (你要的 I 排 = 第 9 欄) <-- 這裡修正了！
+            # 金額 (對準 I 排 = 第 9 欄)
             c_sub = ws.cell(row=row, column=9, value=price * qty)
             c_sub.font = bold_font
             c_sub.alignment = right_align
 
-        # --- 3. 合計金額 (對準 I 欄) ---
+        # 3. 合計金額修正 (對準 I36)
         ws['I36'] = total_val
         ws['I36'].font = Font(name='新細明體', size=12, bold=True)
         ws['I36'].alignment = right_align

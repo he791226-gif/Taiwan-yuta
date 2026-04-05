@@ -94,7 +94,7 @@ with tabs[2]:
     display_items(products["乾燥機"][brand])
 with tabs[3]: display_items(products["選配配件"])
 
-# --- 5. 報價清單與 EXCEL 輸出 (最終穩定對位版) ---
+# --- 5. 報價清單與 EXCEL 輸出 (配合新範本 EXCELNEW 版) ---
 st.divider()
 if st.session_state.cart:
     st.subheader("📋 目前報價清單")
@@ -117,56 +117,51 @@ if st.session_state.cart:
         right_align = Alignment(horizontal='right', vertical='center')
         center_align = Alignment(horizontal='center', vertical='center')
 
-        # 1. 日期改放 B14 (完全避開右邊的標題區，防止撞到「金額」)
-        ws['B14'] = datetime.now().strftime('估價日期:%Y-%m-%d')
-        ws['B14'].font = bold_font
-        ws['B14'].alignment = Alignment(horizontal='left')
-
-        # 2. 標題列格式設定 (只設格式，不寫文字，保留模板原本的「金額」)
-        # 根據模板 CSV：F15=單位, G15=數量, I15=金額
-        for col_name in ['F', 'G', 'I']:
-            target_cell = f"{col_name}15"
-            ws[target_cell].font = bold_font
-            ws[target_cell].alignment = center_align
-
-        # 3. 填入客戶資訊
+        # 1. 填入客戶資訊與日期 (假設你在 H12 留了位置)
         ws['B11'] = customer_name
         ws['B12'] = contact_person
+        ws['H12'] = f"估價日期：{datetime.now().strftime('%Y-%m-%d')}"
+        ws['H12'].font = bold_font
 
-        # 4. 填入明細資料 (精確對準 F, G, I 欄)
+        # 2. 填入明細資料 (採取最正常的 A, B, C, D, E, F 順序)
         for i, (name, qty) in enumerate(st.session_state.cart.items()):
             row = 17 + i
             price = st.session_state.price_config.get(name, 0)
             
-            # NO (A 欄)
+            # NO (第 1 欄 = A)
             ws.cell(row=row, column=1, value=i+1).font = bold_font
             
-            # 品名規格 (B 欄)
+            # 品名規格 (第 2 欄 = B)
             ws.cell(row=row, column=2, value=name).font = bold_font
             
-            # 單位 (F 欄 = 6)
-            c_unit = ws.cell(row=row, column=6, value=unit_map.get(name, "台"))
+            # 單位 (第 3 欄 = C)
+            c_unit = ws.cell(row=row, column=3, value=unit_map.get(name, "台"))
             c_unit.font = bold_font
             c_unit.alignment = center_align
             
-            # 數量 (G 欄 = 7)
-            c_qty = ws.cell(row=row, column=7, value=qty)
+            # 數量 (第 4 欄 = D)
+            c_qty = ws.cell(row=row, column=4, value=qty)
             c_qty.font = bold_font
             c_qty.alignment = center_align
+
+            # 單價 (第 5 欄 = E)
+            c_price = ws.cell(row=row, column=5, value=price)
+            c_price.font = bold_font
+            c_price.alignment = right_align
             
-            # 金額 (I 欄 = 9)
-            c_sub = ws.cell(row=row, column=9, value=price * qty)
+            # 金額 (第 6 欄 = F)
+            c_sub = ws.cell(row=row, column=6, value=price * qty)
             c_sub.font = bold_font
             c_sub.alignment = right_align
 
-        # 5. 合計位置修正 (放在 I36)
-        ws['I36'] = total_val
-        ws['I36'].font = Font(name='新細明體', size=12, bold=True)
-        ws['I36'].alignment = right_align
+        # 3. 合計金額 (假設在 F36)
+        ws['F36'] = total_val
+        ws['F36'].font = Font(name='新細明體', size=12, bold=True)
+        ws['F36'].alignment = right_align
         
-        ws['H36'] = "合計"
-        ws['H36'].font = bold_font
-        ws['H36'].alignment = right_align
+        ws['E36'] = "合計："
+        ws['E36'].font = bold_font
+        ws['E36'].alignment = right_align
 
         # 輸出檔案
         output = io.BytesIO()

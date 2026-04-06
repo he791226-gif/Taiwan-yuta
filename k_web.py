@@ -1,176 +1,147 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
+import yfinance as yf
+import talib
 from datetime import datetime
-import io
-import os
-import openpyxl
-from openpyxl.styles import Font, Alignment
 
-# --- 1. 頁面基本設定 (保留原樣) ---
-st.set_page_config(page_title="翌新空壓機報價系統", layout="wide")
+# =============================================================================
+# 1. 安全設定與登入檢查
+# =============================================================================
+def check_password():
+    """簡單的密碼檢查，保護你的私密策略"""
+    if "password_correct" not in st.session_state:
+        st.session_state["password_correct"] = False
 
-st.markdown("""
-    <style>
-    .main { background-color: #f5f5f5; }
-    .price-text { color: #E84118; font-size: 24px; font-weight: bold; }
-    [data-testid="stVerticalBlock"] > div:has(div.stImage) {
-        background-color: white; padding: 20px; border-radius: 15px;
-        border: 1px solid #ddd; min-height: 450px; text-align: center;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    if not st.session_state["password_correct"]:
+        st.title("🔐 英雄系統授權")
+        pwd = st.text_input("請輸入專屬授權碼", type="password")
+        if st.button("登入"):
+            if pwd == "yuwei8888": # <--- 在這裡設定你的密碼
+                st.session_state["password_correct"] = True
+                st.rerun()
+            else:
+                st.error("授權碼錯誤")
+        return False
+    return True
 
-# --- 2. 完整產品資料庫 (嚴格保留，絕不刪減) ---
-if 'cart' not in st.session_state:
-    st.session_state.cart = {} 
-
-products = {
-    "空壓機": [
-        ("5馬空壓機", "air_5.png"), ("10馬永磁變頻空壓機HCV-10PM-A", "air_10.png"), ("20馬永磁變頻空壓機HCV-20PM-A", "air_20.png"), 
-        ("30馬永磁變頻空壓機HCV-30PM-A", "air_30.png"), ("50馬永磁變頻空壓機HCV-50PM-A", "air_50.png"), ("750馬永磁變頻空壓機HCV-75PM-A", "air_75.png"), ("100馬永磁變頻空壓機HCV-100PM-A", "air_100.png")
-    ],
-    "儲氣筒": [
-        ("105儲氣筒", "tank_105.png"), ("360儲氣筒", "tank_360.png"), ("660儲氣筒", "tank_660.png")
-    ],
-    "乾燥機": {
-        "宙升": [
-            ("5馬宙升乾燥機SD-005", "zs_dryer_5.png"), ("10馬宙升乾燥機SD-010	", "zs_dryer_10.png"), ("20馬宙升乾燥機SD-020", "zs_dryer_20.png"), 
-            ("30馬宙升乾燥機SD-030", "zs_dryer_30.png"), ("50馬宙升乾燥機SD-050", "zs_dryer_50.png"), ("100馬宙升乾燥機", "zs_dryer_100.png")
-        ],
-        "艾冷": [
-            ("5馬艾冷乾燥機", "al_dryer_5.png"), ("10馬艾冷乾燥機", "al_dryer_10.png"), ("20馬艾冷乾燥機", "al_dryer_20.png"), 
-            ("30馬艾冷乾燥機", "al_dryer_30.png"), ("50馬艾冷乾燥機", "al_dryer_50.png"), ("100馬艾冷乾燥機", "al_dryer_100.png")
-        ]
-    },
-    "選配配件": [
-        ("Ckd自動排水器", "drainer_ckd.png"), ("電子式自動排水器", "drainer_e.png"), 
-        ("前置旋風分離器", "separator.png"), ("超精密過濾器組", "filter.png"), ("超精密過濾器芯", "filter_core.png")
-    ]
+# =============================================================================
+# 2. 本地字典與核心算力 (新增避險邏輯)
+# =============================================================================
+STOCK_MAP = {
+    "1323": "永裕", "1905": "華紙", "3013": "晟銘電", "3031": "佰鴻",
+    "4419": "松懋", "1452": "宏益", "4741": "泓瀚", "3042": "晶技",
+    "6616": "特昇-KY", "1906": "寶隆", "4558": "興能高", "2330": "台積電"
 }
 
-unit_map = {
-    "105儲氣筒": "只", "360儲氣筒": "只", "660儲氣筒": "只",
-    "Ckd自動排水器": "只", "電子式自動排水器": "只", "前置旋風分離器": "只",
-    "超精密過濾器組": "只", "超精密過濾器芯": "只"
-}
-
-if 'price_config' not in st.session_state:
-    st.session_state.price_config = {}
-    for cat, items in products.items():
-        if isinstance(items, dict):
-            for sub in items.values():
-                for name, _ in sub: st.session_state.price_config[name] = 0
-        else:
-            for name, _ in items: st.session_state.price_config[name] = 0
-
-# --- 3. 側邊欄 (保留原樣) ---
-st.sidebar.title("🏢 翌新後台管理")
-customer_name = st.sidebar.text_input("客戶名稱", value="")
-contact_person = st.sidebar.text_input("聯絡人", value="")
-
-with st.sidebar.expander("⚙️ 價格調整"):
-    for name in sorted(st.session_state.price_config.keys()):
-        st.session_state.price_config[name] = st.sidebar.number_input(f"{name} 單價", value=st.session_state.price_config[name])
-
-# --- 4. 主展示介面 (保留原樣) ---
-st.title("請選擇設備類別")
-tabs = st.tabs(["空壓機", "儲氣筒", "乾燥機", "選配配件"])
-
-def display_items(item_list):
-    cols = st.columns(3)
-    for i, (name, img) in enumerate(item_list):
-        with cols[i % 3]:
-            if os.path.exists(img):
-                st.image(img, width=250)
-            st.write(f"**{name}**")
-            if st.button(f"➕ 加入報價單", key=f"btn_{name}"):
-                st.session_state.cart[name] = st.session_state.cart.get(name, 0) + 1
-                st.toast(f"已加入: {name}")
-
-with tabs[0]: display_items(products["空壓機"])
-with tabs[1]: display_items(products["儲氣筒"])
-with tabs[2]:
-    brand = st.radio("選擇品牌", ["宙升", "艾冷"], horizontal=True)
-    display_items(products["乾燥機"][brand])
-with tabs[3]: display_items(products["選配配件"])
-
-# --- 5. 報價清單與 EXCEL 輸出 (精確對位最終版) ---
-st.divider()
-if st.session_state.cart:
-    st.subheader("📋 目前報價清單")
-    table_data = []
-    total_val = 0
-    for name, qty in st.session_state.cart.items():
-        p = st.session_state.price_config.get(name, 0)
-        sub = p * qty
-        total_val += sub
-        table_data.append([name, unit_map.get(name, "台"), qty, f"${p:,}", f"${sub:,}"])
+def analyze_stock(sid, df, mkt_change):
+    if df is None or len(df) < 30: return None
+    close = df['Close'].values
+    vol = df['Volume'].values
+    current_price = close[-1]
     
-    st.table(pd.DataFrame(table_data, columns=["品名及規格", "單位", "數量", "單價", "金額"]))
-    st.markdown(f"### <span class='price-text'>總計金額：${total_val:,}</span>", unsafe_allow_html=True)
+    score = 0
+    # A. 市場對比
+    stock_change = (close[-1] - close[-2]) / close[-2]
+    mkt_status = "✅ 強於大盤" if stock_change > mkt_change else "☁️ 隨波逐流"
+    if mkt_change < 0 and stock_change > 0:
+        score += 40
+        mkt_status = "💎 逆勢英雄"
+    elif stock_change > mkt_change: score += 20
 
-    template_path = "翌新估價單EXCELNEW.xlsx"
-    if os.path.exists(template_path):
-        wb = openpyxl.load_workbook(template_path)
-        ws = wb.active
-        bold_font = Font(name='新細明體', size=11, bold=True)
-        right_align = Alignment(horizontal='right', vertical='center')
-        center_align = Alignment(horizontal='center', vertical='center')
+    # B. 量能強度
+    avg_vol = np.mean(vol[-20:-1])
+    vol_ratio = vol[-1] / (avg_vol + 1)
+    vol_status = "💤 量縮"
+    if vol_ratio > 2.0 and close[-1] > close[-2]:
+        score += 30
+        vol_status = "🔥 攻擊爆量"
+    elif vol_ratio > 1.2:
+        score += 15
+        vol_status = "📈 溫和放量"
 
-        # 1. 填入客戶資訊與日期 (H14 改為正確賦值)
-        ws['B11'] = customer_name
-        ws['B12'] = contact_person
-        
-        # 修正日期顯示，避免文字重複
-        ws['H14'] = f"估價日期：{datetime.now().strftime('%Y-%m-%d')}"
-        ws['H14'].font = bold_font
-        ws['H14'].alignment = Alignment(horizontal='left', vertical='center')
+    # C. 趨勢型態 + 避險邏輯 (Bias)
+    ma20 = talib.SMA(close, 20)
+    bias20 = ((current_price - ma20[-1]) / ma20[-1]) * 100
+    
+    chart_status = "💪 站穩月線"
+    if close[-1] > ma20[-1]: score += 10
+    
+    # 💥 華紙教訓：高檔乖離過大強制扣分
+    risk_msg = ""
+    if bias20 > 10:
+        score -= 30
+        risk_msg = f"⚠️ 警告：乖離率 {bias20:.1f}% 過高，慎防回檔！"
+        chart_status = "🚨 高檔過熱"
 
-        # 2. 填入明細資料 (根據你的圖片 F, G, I 座標)
-        for i, (name, qty) in enumerate(st.session_state.cart.items()):
-            row = 17 + i
-            price = st.session_state.price_config.get(name, 0)
+    # 評級判斷
+    if score >= 100: rank, color = "SSS級：爆發潛力", "#d63031"
+    elif score >= 70: rank, color = "A級：具備動能", "#e17055"
+    else: rank, color = "整理中", "#636e72"
+
+    cname = STOCK_MAP.get(str(sid), "")
+    return {
+        "sid": sid, "name": cname, "price": f"{current_price:.2f}",
+        "score": score, "rank": rank, "color": color,
+        "mkt": mkt_status, "vol": vol_status, "chart": chart_status, "risk": risk_msg
+    }
+
+# =============================================================================
+# 3. 網頁介面佈局 (手機優化)
+# =============================================================================
+if check_password():
+    st.set_page_config(page_title="台股英雄監控台", layout="wide")
+    st.title("🚀 台股英雄監控台 (避險優化版)")
+    
+    # 側邊欄設定
+    with st.sidebar:
+        st.header("掃描設定")
+        scan_mode = st.radio("掃描範圍", ["自選清單", "全台股 (4位數)"])
+        if scan_mode == "自選清單":
+            target_input = st.text_area("輸入代碼 (空白分隔)", "1323 1905 4419 2330")
+            sids = target_input.split()
+        else:
+            sids = [str(i) for i in range(1101, 1500)] # 範例區間
             
-            # NO (A 欄 = 1)
-            ws.cell(row=row, column=1, value=i+1).font = bold_font
+    if st.button("🔥 開始執行深度掃描"):
+        with st.spinner("英雄集結中..."):
+            # 獲取大盤
+            mkt_df = yf.Ticker("^TWII").history(period="5d")
+            mkt_change = (mkt_df['Close'].iloc[-1] - mkt_df['Close'].iloc[-2]) / mkt_df['Close'].iloc[-2]
             
-            # 品名規格 (B 欄 = 2)
-            ws.cell(row=row, column=2, value=name).font = bold_font
+            # 批次下載
+            symbols = [f"{s}.TW" for s in sids] + [f"{s}.TWO" for s in sids]
+            data = yf.download(symbols, period="1y", group_by='ticker', silent=True)
             
-            # 單位 (對準 F 排 = 第 6 欄)
-            c_unit = ws.cell(row=row, column=6, value=unit_map.get(name, "台"))
-            c_unit.font = bold_font
-            c_unit.alignment = center_align
+            results = []
+            for sid in sids:
+                df = None
+                if f"{sid}.TW" in data and not data[f"{sid}.TW"].dropna().empty:
+                    df = data[f"{sid}.TW"].dropna()
+                elif f"{sid}.TWO" in data and not data[f"{sid}.TWO"].dropna().empty:
+                    df = data[f"{sid}.TWO"].dropna()
+                
+                if df is not None:
+                    res = analyze_stock(sid, df, mkt_change)
+                    if res and res['score'] >= 50: results.append(res)
             
-            # 數量 (對準 G 排 = 第 7 欄)
-            c_qty = ws.cell(row=row, column=7, value=qty)
-            c_qty.font = bold_font
-            c_qty.alignment = center_align
-
-            # 單價 (對準 H 排 = 第 8 欄)
-            c_price = ws.cell(row=row, column=8, value=price)
-            c_price.font = bold_font
-            c_price.alignment = right_align
+            results.sort(key=lambda x: x['score'], reverse=True)
             
-            # 金額 (對準 I 排 = 第 9 欄)
-            c_sub = ws.cell(row=row, column=9, value=price * qty)
-            c_sub.font = bold_font
-            c_sub.alignment = right_align
-
-        # 3. 合計金額修正 (對準 I36)
-        ws['I36'] = total_val
-        ws['I36'].font = Font(name='新細明體', size=12, bold=True)
-        ws['I36'].alignment = right_align
-        
-        ws['H36'] = "合計："
-        ws['H36'].font = bold_font
-        ws['H36'].alignment = right_align
-
-        # 輸出檔案
-        output = io.BytesIO()
-        wb.save(output)
-        st.download_button(label="📤 下載 翌新專業報價單 (Excel)", data=output.getvalue(), file_name=f"翌新報價_{customer_name}.xlsx")
-
-    if st.button("🗑️ 清空重選"):
-        st.session_state.cart = {}
-        st.rerun()
+            # 顯示結果
+            if not results:
+                st.warning("目前市場無符合動能之標的。")
+            else:
+                for r in results[:15]: # 手機版顯示前15強即可
+                    with st.expander(f"【{r['score']}分】{r['sid']} {r['name']} - {r['rank']}"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("現價", r['price'])
+                            st.write(f"**市場對比：** {r['mkt']}")
+                            st.write(f"**量能強度：** {r['vol']}")
+                        with col2:
+                            st.write(f"**趨勢狀態：** {r['chart']}")
+                            if r['risk']:
+                                st.error(r['risk'])
+                            else:
+                                st.success("✅ 目前位階安全")
+                        st.progress(min(max(r['score'], 0), 100) / 100)

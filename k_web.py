@@ -1,147 +1,86 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import yfinance as yf
-import talib
-from datetime import datetime
+import sys
+import getpass
 
-# =============================================================================
-# 1. 安全設定與登入檢查
-# =============================================================================
 def check_password():
-    """簡單的密碼檢查，保護你的私密策略"""
-    if "password_correct" not in st.session_state:
-        st.session_state["password_correct"] = False
-
-    if not st.session_state["password_correct"]:
-        st.title("🔐 英雄系統授權")
-        pwd = st.text_input("請輸入專屬授權碼", type="password")
-        if st.button("登入"):
-            if pwd == "yuwei8888": # <--- 在這裡設定你的密碼
-                st.session_state["password_correct"] = True
-                st.rerun()
-            else:
-                st.error("授權碼錯誤")
+    # 在這裡設定你想要的密碼
+    SECRET_PASSWORD = "你的密碼" 
+    
+    # 使用 getpass 讓輸入密碼時不會顯示在螢幕上，避免被旁人看到
+    pwd = getpass.getpass("請輸入系統啟動密碼: ")
+    
+    if pwd == SECRET_PASSWORD:
+        print("\n[密碼正確] 系統啟動中...")
+        return True
+    else:
+        print("\n[錯誤] 密碼不正確，存取拒絕。")
         return False
-    return True
 
-# =============================================================================
-# 2. 本地字典與核心算力 (新增避險邏輯)
-# =============================================================================
-STOCK_MAP = {
-    "1323": "永裕", "1905": "華紙", "3013": "晟銘電", "3031": "佰鴻",
-    "4419": "松懋", "1452": "宏益", "4741": "泓瀚", "3042": "晶技",
-    "6616": "特昇-KY", "1906": "寶隆", "4558": "興能高", "2330": "台積電"
-}
-
-def analyze_stock(sid, df, mkt_change):
-    if df is None or len(df) < 30: return None
-    close = df['Close'].values
-    vol = df['Volume'].values
-    current_price = close[-1]
+def pro_stock_monitor():
+    print("\n" + "="*50)
+    print("      2436 偉詮電 進階動態監控系統 (密碼防護版)      ")
+    print("="*50)
     
-    score = 0
-    # A. 市場對比
-    stock_change = (close[-1] - close[-2]) / close[-2]
-    mkt_status = "✅ 強於大盤" if stock_change > mkt_change else "☁️ 隨波逐流"
-    if mkt_change < 0 and stock_change > 0:
-        score += 40
-        mkt_status = "💎 逆勢英雄"
-    elif stock_change > mkt_change: score += 20
+    try:
+        # 1. 昨天的靜態數據 (今晚就可以先填好)
+        y_close = float(input("1. 請輸入昨日收盤價 (如 75.1): "))
+        y_total_vol = float(input("2. 請輸入昨日總成交量 (張): "))
+        
+        # 自動計算攻擊門檻 (昨日總量 8%)
+        suggested_threshold = y_total_vol * 0.08
+        print(f"\n[系統計算] 明日 5 分鐘強勢門檻建議: {suggested_threshold:.0f} 張")
+        
+        ref_input = input(f"   請輸入門檻 (按 Enter 使用建議值 {suggested_threshold:.0f}): ")
+        ref_volume = float(ref_input) if ref_input else suggested_threshold
 
-    # B. 量能強度
-    avg_vol = np.mean(vol[-20:-1])
-    vol_ratio = vol[-1] / (avg_vol + 1)
-    vol_status = "💤 量縮"
-    if vol_ratio > 2.0 and close[-1] > close[-2]:
-        score += 30
-        vol_status = "🔥 攻擊爆量"
-    elif vol_ratio > 1.2:
-        score += 15
-        vol_status = "📈 溫和放量"
+        print("\n" + "-"*50)
+        print("設定完成。請於明天 9:00 - 9:30 輸入實時數據。")
+        print("-"*50)
 
-    # C. 趨勢型態 + 避險邏輯 (Bias)
-    ma20 = talib.SMA(close, 20)
-    bias20 = ((current_price - ma20[-1]) / ma20[-1]) * 100
-    
-    chart_status = "💪 站穩月線"
-    if close[-1] > ma20[-1]: score += 10
-    
-    # 💥 華紙教訓：高檔乖離過大強制扣分
-    risk_msg = ""
-    if bias20 > 10:
-        score -= 30
-        risk_msg = f"⚠️ 警告：乖離率 {bias20:.1f}% 過高，慎防回檔！"
-        chart_status = "🚨 高檔過熱"
+        # 2. 明天早上的即時開盤價
+        t_open = float(input("3. 請輸入今日開盤價 (9:25確認): "))
+        premium_rate = ((t_open - y_close) / y_close) * 100
+        
+        print(f"\n[目前狀態] 開盤溢價率: {premium_rate:.2f}%")
+        
+        # 3. 關鍵的 5 分鐘成交量
+        current_vol = float(input("4. 請輸入開盤前 5-10 分鐘累計成交量 (張): "))
 
-    # 評級判斷
-    if score >= 100: rank, color = "SSS級：爆發潛力", "#d63031"
-    elif score >= 70: rank, color = "A級：具備動能", "#e17055"
-    else: rank, color = "整理中", "#636e72"
+        # 4. 核心邏輯診斷
+        status = ""
+        suggestion = ""
 
-    cname = STOCK_MAP.get(str(sid), "")
-    return {
-        "sid": sid, "name": cname, "price": f"{current_price:.2f}",
-        "score": score, "rank": rank, "color": color,
-        "mkt": mkt_status, "vol": vol_status, "chart": chart_status, "risk": risk_msg
-    }
-
-# =============================================================================
-# 3. 網頁介面佈局 (手機優化)
-# =============================================================================
-if check_password():
-    st.set_page_config(page_title="台股英雄監控台", layout="wide")
-    st.title("🚀 台股英雄監控台 (避險優化版)")
-    
-    # 側邊欄設定
-    with st.sidebar:
-        st.header("掃描設定")
-        scan_mode = st.radio("掃描範圍", ["自選清單", "全台股 (4位數)"])
-        if scan_mode == "自選清單":
-            target_input = st.text_area("輸入代碼 (空白分隔)", "1323 1905 4419 2330")
-            sids = target_input.split()
-        else:
-            sids = [str(i) for i in range(1101, 1500)] # 範例區間
+        if premium_rate < 0:
+            status = "危險 (負溢價)"
+            suggestion = "主力出貨嫌疑重，不符強勢股慣性，建議開盤先撤。"
             
-    if st.button("🔥 開始執行深度掃描"):
-        with st.spinner("英雄集結中..."):
-            # 獲取大盤
-            mkt_df = yf.Ticker("^TWII").history(period="5d")
-            mkt_change = (mkt_df['Close'].iloc[-1] - mkt_df['Close'].iloc[-2]) / mkt_df['Close'].iloc[-2]
-            
-            # 批次下載
-            symbols = [f"{s}.TW" for s in sids] + [f"{s}.TWO" for s in sids]
-            data = yf.download(symbols, period="1y", group_by='ticker', silent=True)
-            
-            results = []
-            for sid in sids:
-                df = None
-                if f"{sid}.TW" in data and not data[f"{sid}.TW"].dropna().empty:
-                    df = data[f"{sid}.TW"].dropna()
-                elif f"{sid}.TWO" in data and not data[f"{sid}.TWO"].dropna().empty:
-                    df = data[f"{sid}.TWO"].dropna()
-                
-                if df is not None:
-                    res = analyze_stock(sid, df, mkt_change)
-                    if res and res['score'] >= 50: results.append(res)
-            
-            results.sort(key=lambda x: x['score'], reverse=True)
-            
-            # 顯示結果
-            if not results:
-                st.warning("目前市場無符合動能之標的。")
+        elif 0 <= premium_rate < 3:
+            if current_vol >= ref_volume:
+                status = "弱勢轉強 (量能救援！)"
+                suggestion = f"開盤溢價雖低({premium_rate:.2f}%)，但量能達標，主力強勢換手，符合「放量上攻」，建議續抱！"
             else:
-                for r in results[:15]: # 手機版顯示前15強即可
-                    with st.expander(f"【{r['score']}分】{r['sid']} {r['name']} - {r['rank']}"):
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.metric("現價", r['price'])
-                            st.write(f"**市場對比：** {r['mkt']}")
-                            st.write(f"**量能強度：** {r['vol']}")
-                        with col2:
-                            st.write(f"**趨勢狀態：** {r['chart']}")
-                            if r['risk']:
-                                st.error(r['risk'])
-                            else:
-                                st.success("✅ 目前位階安全")
-                        st.progress(min(max(r['score'], 0), 100) / 100)
+                status = "真弱勢 (氣勢不足且無量)"
+                suggestion = "低溢價且量能不足，容易開平走低，建議保守減碼。"
+                
+        elif 3 <= premium_rate <= 5:
+            status = "健康走勢"
+            suggestion = "開盤氣勢良好，穩健續抱。注意盤中若衝高至 6-8% 可分批獲利了結。"
+            
+        elif premium_rate > 5:
+            status = "極強氣勢 (主力搶購)"
+            suggestion = f"溢價高達 {premium_rate:.2f}%！力道極強，只要不跌回 3% 溢價位置，有機會拚連板。"
+
+        # 5. 最終結果輸出
+        print("\n" + "★"*45)
+        print(f"  最終診斷結果：{status}")
+        print(f"  建議操作策略：{suggestion}")
+        print("★"*45)
+
+    except ValueError:
+        print("\n[錯誤] 輸入格式有誤，請輸入數字。")
+
+if __name__ == "__main__":
+    # 執行程式後先驗證密碼
+    if check_password():
+        pro_stock_monitor()
+    else:
+        sys.exit()

@@ -3,7 +3,7 @@ import getpass
 
 def check_password():
     # 在這裡設定你想要的密碼
-    SECRET_PASSWORD = "你的密碼" 
+    SECRET_PASSWORD = "yuwei8888" 
     
     # 使用 getpass 讓輸入密碼時不會顯示在螢幕上，避免被旁人看到
     pwd = getpass.getpass("請輸入系統啟動密碼: ")
@@ -17,7 +17,7 @@ def check_password():
 
 def pro_stock_monitor():
     print("\n" + "="*50)
-    print("      2436 偉詮電 進階動態監控系統 (密碼防護版)      ")
+    print("     動態監控系統       ")
     print("="*50)
     
     try:
